@@ -1,11 +1,12 @@
 (ns lexref.core
   (:require
-   [lexref.tree :refer
-    [tree? leaf-map leaf-seq leaf-filter leaf-search]]
-   [lexref.release :refer
-    [IRelease release!]]
    [lexref.lexref :refer
-    [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]))
+    [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
+   [lexref.apply :refer [lex-ref-apply]]
+   [lexref.tree :refer
+    [tree? leaf-map]]
+   [lexref.release :refer
+    [IRelease release!]]))
 
 ;; For debugging
 (comment
@@ -13,51 +14,6 @@
     IRelease
     (release! [this]
       (println "release number " this))))
-
-
-;;; Apply
-
-(declare lex-ref-apply)
-
-(defn- lex-ref-value-eq?
-  ([y-val]
-   (partial lex-ref-value-eq? y-val))
-  ([y-val x-ref]
-   (and (lex-ref? x-ref)
-        (identical? y-val (lex-ref-value x-ref)))))
-
-(defn- resolve-lex-ref [x-refs y-val]
-  (if-let [x-ref (leaf-search (lex-ref-value-eq? y-val) x-refs)]
-    x-ref
-    (if (lex-ref? y-val)
-      y-val
-      (lex-ref-create y-val))))
-
-(defn- resolve-lex-refs [x-refs y-vals]
-  (leaf-map (partial resolve-lex-ref x-refs) y-vals))
-
-(defn- lex-ref-dangling? [x]
-  (and (lex-ref? x)
-       (zero? @(:count x))))
-
-(defn- lex-ref-fn [f]
-  (fn [& xs]
-    (lex-ref-apply f xs)))
-
-(defn- lex-ref-fn-arg [x]
-  (if (fn? x)
-    (lex-ref-fn x)
-    (lex-ref-value x)))
-
-(defn- lex-ref-apply [f xs]
-  (run! lex-ref-inc! (leaf-filter lex-ref? xs))
-  (let [ys (apply f (leaf-map lex-ref-fn-arg xs))
-        y-refs (resolve-lex-refs xs ys)]
-    (run! lex-ref-dec! (leaf-filter lex-ref? xs))
-    (run! lex-ref-inc! (leaf-seq y-refs))
-    (run! release! (leaf-filter lex-ref-dangling? xs))
-    (run! lex-ref-dec! (leaf-seq y-refs))
-    y-refs))
 
 (defn- lex-ref->map [x]
   (cond (lex-ref? x) {:value (:value x)
