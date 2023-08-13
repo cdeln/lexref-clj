@@ -1,6 +1,8 @@
 (ns lexref.core
   (:require [clojure.pprint :refer [pprint]]))
 
+;;; Release
+
 (defprotocol IRelease
   (release! [this]))
 
@@ -10,6 +12,9 @@
 (defn- try-release! [x]
   (when (releasable? x)
     (release! x)))
+
+
+;;; Tree
 
 (defprotocol ITree
   (tree-vals [this])
@@ -68,6 +73,9 @@
   (fn [& _]
     value))
 
+
+;;; LexRef
+
 (defrecord LexRef [value count released?]
   IRelease
   (release! [_]
@@ -84,7 +92,8 @@
   ([value]
    (lex-ref-create value 0))
   ([value count]
-   (assert (releasable? value) (str "Value " value " is not releasable"))
+   (assert (releasable? value)
+           (str "Value " value " is not releasable"))
    (->LexRef value (ref count) (ref false))))
 
 (defn- lex-ref-value [x]
@@ -107,6 +116,9 @@
     (release! [this]
       (println "release number " this))))
 
+
+;;; Apply
+
 (defn- lex-ref-value-eq?
   ([y-val]
    (partial lex-ref-value-eq? y-val))
@@ -126,8 +138,11 @@
   (and (lex-ref? x)
        (zero? @(:count x))))
 
+(defn lex-ref-fn-arg [x]
+  (lex-ref-value x))
+
 (defn- lex-ref-apply [f x-refs]
-  (let [y-vals (apply f (leaf-map lex-ref-value x-refs))
+  (let [y-vals (apply f (leaf-map lex-ref-fn-arg x-refs))
         y-refs (resolve-lex-refs x-refs y-vals)]
     (run! lex-ref-inc! (leaf-seq y-refs))
     (run! release! (filter lex-ref-dangling? (leaf-seq x-refs)))
@@ -163,7 +178,8 @@
       (println "bound after:  " (lex-ref->map bound))))
 )
 
-;; Expr
+
+;;; Expr
 
 (declare lex-ref-expr)
 
@@ -173,11 +189,30 @@
 (defn list-like? [x]
   (or (list? x) (cons? x)))
 
+(defn lex-ref-retain [x]
+  (if (lex-ref? x)
+    (do
+      (lex-ref-inc! x)
+      x)
+    (lex-ref-create x 1)))
+
+(defn lex-ref-release! [x]
+  (when (lex-ref? x)
+    (lex-ref-dec! x)
+    (when (zero? @(:count x))
+      (release! x))))
+
+(defn lex-ref-retain-expr [expr]
+  `(lex-ref-retain ~expr))
+
 (defn lex-ref-let-expr [bindings & body]
   (let [names (take-nth 2 bindings)
-        exprs (map lex-ref-expr (take-nth 2 (drop 1 bindings)))]
-    `(let [~@(interleave names exprs)]
-       ~@(map lex-ref-expr body))))
+        exprs (map (comp lex-ref-retain-expr lex-ref-expr)
+                   (take-nth 2 (drop 1 bindings)))]
+    `(let [~@(interleave names exprs)
+           result# (do ~@(map lex-ref-expr body))]
+       (run! lex-ref-release! [~@names])
+       result#)))
 
 (defn lex-ref-apply-expr [f xs]
   `(lex-ref-apply ~f ~(mapv lex-ref-expr xs)))
@@ -193,13 +228,22 @@
         (tree? expr) (leaf-map lex-ref-expr expr)
         :else expr))
 
-
 (defn lex-ref-bind-expr [var-name]
   [var-name `(lex-ref-create ~var-name 1)])
 
-(defmacro with-lex-ref [vars expr]
-  `(let [~@(mapcat lex-ref-bind-expr vars)]
-     ~(lex-ref-expr expr)))
+(defmacro with-lex-ref
+  "Create a lexical reference context, evaluate `expr` within it.
+  Optionally move expiring `vars` into the context.
+  This should be used to transfer ownership of manually tracked variables
+  created in other contexts to this context. Passed `vars` are invalidated and
+  should not be used after evaluating the context."
+  ([expr]
+   `(with-lex-ref [] ~expr))
+  ([vars expr]
+   `(let [~@(mapcat lex-ref-bind-expr vars)
+          result# (lex-ref-value ~(lex-ref-expr expr))]
+      (run! lex-ref-release! ~vars)
+      result#)))
 
 (comment
   (def outer-var 3)
