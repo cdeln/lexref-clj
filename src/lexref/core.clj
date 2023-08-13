@@ -32,6 +32,13 @@
   (tree-map [this f]
     (into '() (reverse (map f this)))))
 
+;; Function varargs
+(extend-type clojure.lang.ArraySeq
+  ITree
+  (tree-vals [this] (seq this))
+  (tree-map [this f]
+    (mapv f this)))
+
 (extend-type clojure.lang.PersistentArrayMap
   ITree
   (tree-vals [this] (vals this))
@@ -119,6 +126,8 @@
 
 ;;; Apply
 
+(declare lex-ref-apply)
+
 (defn- lex-ref-value-eq?
   ([y-val]
    (partial lex-ref-value-eq? y-val))
@@ -129,20 +138,29 @@
 (defn- resolve-lex-ref [x-refs y-val]
   (if-let [x-ref (leaf-search (lex-ref-value-eq? y-val) x-refs)]
     x-ref
-    (lex-ref-create y-val)))
+    (if (lex-ref? y-val)
+      y-val
+      (lex-ref-create y-val))))
 
 (defn- resolve-lex-refs [x-refs y-vals]
   (leaf-map (partial resolve-lex-ref x-refs) y-vals))
 
-(defn lex-ref-dangling? [x]
+(defn- lex-ref-dangling? [x]
   (and (lex-ref? x)
        (zero? @(:count x))))
 
+(defn- lex-ref-fn [f]
+  (fn [& xs]
+    (lex-ref-apply f xs)))
+
 (defn lex-ref-fn-arg [x]
-  (lex-ref-value x))
+  (if (fn? x)
+    (lex-ref-fn x)
+    (lex-ref-value x)))
 
 (defn- lex-ref-apply [f x-refs]
-  (let [y-vals (apply f (leaf-map lex-ref-fn-arg x-refs))
+  (let [args (leaf-map lex-ref-fn-arg x-refs)
+        y-vals (apply f args)
         y-refs (resolve-lex-refs x-refs y-vals)]
     (run! lex-ref-inc! (leaf-seq y-refs))
     (run! release! (filter lex-ref-dangling? (leaf-seq x-refs)))
@@ -250,4 +268,8 @@
   (with-lex-ref [outer-var]
     (let [inner-var (* outer-var outer-var)]
       (+ outer-var inner-var)))
+
+  (with-lex-ref
+    (let [x 1 y 2 z 4]
+      (reduce + [x y z])))
 )
