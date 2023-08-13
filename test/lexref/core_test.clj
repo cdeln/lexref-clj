@@ -7,7 +7,8 @@
     (is (= (leaf-map vector '(1 [2 {:a :b :c #{3 4}}]))
            '([1] [[2] {:a [:b] :c #{[3] [4]}}])))))
 
-(deftest test-leaf-collect
+(deftest test-leaf-seq
   (testing "leaf-collect"
-    (is (= (leaf-collect '(1 [2 {:a :b :c #{3 4}}]))
-           '(1 2 :b 3 4)))))
+    (let [s (leaf-seq '(1 [2 {:a :b :c #{3 4}}]))]
+      (is (or (= s '(1 2 :b 3 4))
+              (= s '(1 2 :b 4 3)))))))

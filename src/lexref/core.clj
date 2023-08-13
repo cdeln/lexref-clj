@@ -1,5 +1,4 @@
-(ns lexref.core
-  (:require [clojure.pprint :refer [pprint]]))
+(ns lexref.core)
 
 ;;; Release
 
@@ -8,10 +7,6 @@
 
 (defn- releasable? [x]
   (satisfies? IRelease x))
-
-(defn- try-release! [x]
-  (when (releasable? x)
-    (release! x)))
 
 
 ;;; Tree
@@ -60,28 +55,27 @@
 (defn- tree? [x]
   (satisfies? ITree x))
 
-(defn- leaf? [x]
-  (not (tree? x)))
-
-(defn- leaf-map [f x]
+(defn leaf-map [f x]
   (if (tree? x)
     (tree-map x (partial leaf-map f))
     (f x)))
 
-(defn- leaf-seq [x]
+(defn leaf-seq [x]
   (if (tree? x)
     (mapcat leaf-seq (tree-vals x))
     (list x)))
 
+(defn- leaf-filter [pred tree]
+  (filter pred (leaf-seq tree)))
+
 (defn- leaf-search [pred tree]
-  (first (filter pred (leaf-seq tree))))
-
-(defn return [value]
-  (fn [& _]
-    value))
-
+  (first (leaf-filter pred tree)))
 
 ;;; LexRef
+
+(defn- return [value]
+  (fn [& _]
+    value))
 
 (defrecord LexRef [value count released?]
   IRelease
@@ -100,7 +94,9 @@
    (lex-ref-create value 0))
   ([value count]
    (assert (releasable? value)
-           (str "Value " value " is not releasable"))
+           (str "Lexical reference value " value " is not releasable"))
+   (assert (not (lex-ref? value))
+           (str "Lexical reference value " value " is a lexical reference"))
    (->LexRef value (ref count) (ref false))))
 
 (defn- lex-ref-value [x]
@@ -109,10 +105,12 @@
     x))
 
 (defn- lex-ref-inc! [x]
+  (assert (lex-ref? x))
   (dosync
    (alter (:count x) inc)))
 
 (defn- lex-ref-dec! [x]
+  (assert (lex-ref? x))
   (dosync
    (alter (:count x) dec)))
 
@@ -153,17 +151,18 @@
   (fn [& xs]
     (lex-ref-apply f xs)))
 
-(defn lex-ref-fn-arg [x]
+(defn- lex-ref-fn-arg [x]
   (if (fn? x)
     (lex-ref-fn x)
     (lex-ref-value x)))
 
-(defn- lex-ref-apply [f x-refs]
-  (let [args (leaf-map lex-ref-fn-arg x-refs)
-        y-vals (apply f args)
-        y-refs (resolve-lex-refs x-refs y-vals)]
+(defn- lex-ref-apply [f xs]
+  (run! lex-ref-inc! (leaf-filter lex-ref? xs))
+  (let [ys (apply f (leaf-map lex-ref-fn-arg xs))
+        y-refs (resolve-lex-refs xs ys)]
+    (run! lex-ref-dec! (leaf-filter lex-ref? xs))
     (run! lex-ref-inc! (leaf-seq y-refs))
-    (run! release! (filter lex-ref-dangling? (leaf-seq x-refs)))
+    (run! release! (leaf-filter lex-ref-dangling? xs))
     (run! lex-ref-dec! (leaf-seq y-refs))
     y-refs))
 
@@ -201,52 +200,52 @@
 
 (declare lex-ref-expr)
 
-(defn cons? [x]
+(defn- cons? [x]
   (instance? clojure.lang.Cons x))
 
-(defn list-like? [x]
+(defn- list-like? [x]
   (or (list? x) (cons? x)))
 
-(defn lex-ref-retain [x]
+(defn- lex-ref-retain [x]
   (if (lex-ref? x)
     (do
       (lex-ref-inc! x)
       x)
     (lex-ref-create x 1)))
 
-(defn lex-ref-release! [x]
+(defn- lex-ref-release! [x]
   (when (lex-ref? x)
     (lex-ref-dec! x)
     (when (zero? @(:count x))
       (release! x))))
 
-(defn lex-ref-retain-expr [expr]
+(defn- retain-expr [expr]
   `(lex-ref-retain ~expr))
 
-(defn lex-ref-let-expr [bindings & body]
+(defn- let-expr [bindings & body]
   (let [names (take-nth 2 bindings)
-        exprs (map (comp lex-ref-retain-expr lex-ref-expr)
+        exprs (map (comp retain-expr lex-ref-expr)
                    (take-nth 2 (drop 1 bindings)))]
     `(let [~@(interleave names exprs)
            result# (do ~@(map lex-ref-expr body))]
        (run! lex-ref-release! [~@names])
        result#)))
 
-(defn lex-ref-apply-expr [f xs]
+(defn- apply-expr [f xs]
   `(lex-ref-apply ~f ~(mapv lex-ref-expr xs)))
 
-(defn lex-ref-list-expr [expr]
+(defn- list-expr [expr]
   (let [[what & args] expr]
     (cond
-      (= what 'let) (apply lex-ref-let-expr args)
-      :else (lex-ref-apply-expr what args))))
+      (= what 'let) (apply let-expr args)
+      :else (apply-expr what args))))
 
-(defn lex-ref-expr [expr]
-  (cond (list-like? expr) (lex-ref-list-expr expr)
+(defn- lex-ref-expr [expr]
+  (cond (list-like? expr) (list-expr expr)
         (tree? expr) (leaf-map lex-ref-expr expr)
         :else expr))
 
-(defn lex-ref-bind-expr [var-name]
+(defn- bind-expr [var-name]
   [var-name `(lex-ref-create ~var-name 1)])
 
 (defmacro with-lex-ref
@@ -258,7 +257,7 @@
   ([expr]
    `(with-lex-ref [] ~expr))
   ([vars expr]
-   `(let [~@(mapcat lex-ref-bind-expr vars)
+   `(let [~@(mapcat bind-expr vars)
           result# (lex-ref-value ~(lex-ref-expr expr))]
       (run! lex-ref-release! ~vars)
       result#)))
