@@ -1,6 +1,6 @@
-(ns lexref.core-test
+(ns lexref.tree-test
   (:require [clojure.test :refer :all]
-            [lexref.core :refer :all]))
+            [lexref.tree :refer :all]))
 
 (deftest test-leaf-map
   (testing "leaf-map"
