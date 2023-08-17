@@ -1,18 +1,22 @@
 (ns lexref.dev
+  (:gen-class)
   (:require
    [lexref.core :refer [with-lex-ref]]
    [lexref.lexref :refer [lex-ref? lex-ref-create]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer [tree? leaf-map]]
-   [lexref.release :refer [IRelease]]
+   [lexref.release :refer [ISelfRelease release!]]
    [libpython-clj2.python :as py]
-   [libpython-clj2.require :refer [require-python]]))
+   [libpython-clj2.require :refer [require-python]]
+   [libpython-clj2.python.ffi :as py-ffi]
+   [libpython-clj2.python.gc :as py-gc]))
 
+(require-python '[builtins :as pyb])
 (require-python '[numpy :as np])
 
 (extend-type java.lang.Number
-  IRelease
-  (release! [this]
+  ISelfRelease
+  (self-release! [this]
     (println "release number " this)))
 
 (defn- lex-ref->map [x]
@@ -59,3 +63,30 @@
     (reduce + [x y z])))
 (println)
 
+(defmethod release! :pyobject [x]
+  (when (pyb/isinstance x np/ndarray)
+    (println "release numpy array: " (np/shape x))
+    (py-ffi/Py_DecRef x)))
+
+(defmacro with-python
+  ([vars body]
+   `(py-gc/with-disabled-gc
+      (py/with-gil
+        (with-lex-ref ~vars
+          ~body))))
+  ([body]
+   `(with-python [] ~body)))
+
+
+(defn -main [& args]
+  (println "create x")
+  (def x
+    (time (with-python
+            (np/add (np/ones [1000 1000 1000] :dtype :uint8)
+                    (np/ones [1000 1000 1000] :dtype :uint8)))))
+  (println "move x, create y")
+  (def y
+    (time (with-python [x]
+            (np/add x x))))
+  (println "release y")
+  (time (release! y)))

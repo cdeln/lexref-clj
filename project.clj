@@ -8,4 +8,5 @@
                    :jvm-opts ["--add-modules" "jdk.incubator.foreign,jdk.incubator.vector"
                               "--enable-native-access=ALL-UNNAMED"
                               "-Djdk.attach.allowAttachSelf"]}}
-  :repl-options {:init-ns lexref.core})
+  :repl-options {:init-ns lexref.dev}
+  :main lexref.dev)

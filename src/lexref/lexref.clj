@@ -1,9 +1,9 @@
 (ns lexref.lexref
-  (:require [lexref.release :refer [IRelease release! releasable?]]))
+  (:require [lexref.release :refer [ISelfRelease release! releasable?]]))
 
 (defrecord LexRef [value count released?]
-  IRelease
-  (release! [_]
+  ISelfRelease
+  (self-release! [_]
     (dosync
      (assert (zero? @count))
      (assert (not @released?))
