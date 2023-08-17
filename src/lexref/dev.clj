@@ -89,4 +89,5 @@
     (time (with-python [x]
             (np/add x x))))
   (println "release y")
-  (time (release! y)))
+  (time (release! y))
+  (System/exit 0))
