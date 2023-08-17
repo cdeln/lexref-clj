@@ -1,7 +1,7 @@
 (ns lexref.dev
   (:gen-class)
   (:require
-   [lexref.core :refer [with-lex-ref]]
+   [lexref.core :refer [with-lexref]]
    [lexref.lexref :refer [lex-ref? lex-ref-create]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer [tree? leaf-map]]
@@ -50,15 +50,15 @@
     (println "bound after:  " (lex-ref->map bound))))
 
 
-(println "Test with-lex-ref without external var")
+(println "Test with-lexref without external var")
 (def outer-var 3)
-(with-lex-ref [outer-var]
+(with-lexref [outer-var]
   (let [inner-var (* outer-var outer-var)]
     (+ outer-var inner-var)))
 (println)
 
-(println "Test with-lex-ref reduce")
-(with-lex-ref
+(println "Test with-lexref reduce")
+(with-lexref
   (let [x 1 y 2 z 4]
     (reduce + [x y z])))
 (println)
@@ -72,7 +72,7 @@
   ([vars body]
    `(py-gc/with-disabled-gc
       (py/with-gil
-        (with-lex-ref ~vars
+        (with-lexref ~vars
           ~body))))
   ([body]
    `(with-python [] ~body)))

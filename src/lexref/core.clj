@@ -59,14 +59,14 @@
 (defn- bind-external-name-expr [var-name]
   [var-name `(lex-ref-create ~var-name 1)])
 
-(defmacro with-lex-ref
+(defmacro with-lexref
   "Create a lexical reference context, evaluate `expr` within it.
   Optionally move expiring `vars` into the context.
   This should be used to transfer ownership of manually tracked variables
   created in other contexts to this context. Passed `vars` are invalidated and
   should not be used after evaluating the context."
   ([expr]
-   `(with-lex-ref [] ~expr))
+   `(with-lexref [] ~expr))
   ([vars expr]
    `(let [~@(mapcat bind-external-name-expr vars)
           result# (lex-ref-value ~(lex-ref-expr expr))]
