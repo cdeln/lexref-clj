@@ -4,7 +4,11 @@
    [lexref.lexref :refer [lex-ref? lex-ref-create]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer [tree? leaf-map]]
-   [lexref.release :refer [IRelease]]))
+   [lexref.release :refer [IRelease]]
+   [libpython-clj2.python :as py]
+   [libpython-clj2.require :refer [require-python]]))
+
+(require-python '[numpy :as np])
 
 (extend-type java.lang.Number
   IRelease
@@ -54,3 +58,4 @@
   (let [x 1 y 2 z 4]
     (reduce + [x y z])))
 (println)
+

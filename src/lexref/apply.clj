@@ -1,9 +1,9 @@
 (ns lexref.apply
   (:require [lexref.lexref :refer
              [lex-ref? lex-ref-value lex-ref-create lex-ref-inc! lex-ref-dec!]]
-            [lexref.release :refer [release!]]
+            [lexref.release :refer [releasable? release!]]
             [lexref.tree :refer
-             [leaf-map leaf-seq leaf-filter leaf-search]]))
+             [leaf-map leaf-filter leaf-search]]))
 
 (declare lex-ref-apply)
 
@@ -19,7 +19,9 @@
     x-ref
     (if (lex-ref? y-val)
       y-val
-      (lex-ref-create y-val))))
+      (if (releasable? y-val)
+        (lex-ref-create y-val)
+        y-val))))
 
 (defn- resolve-lex-refs [x-refs y-vals]
   (leaf-map (partial resolve-lex-ref x-refs) y-vals))
@@ -45,10 +47,10 @@
   A value of `f` is aliased if it is referentially identical to some object in `args`."
   [f args]
   (run! lex-ref-inc! (leaf-filter lex-ref? args))
-  (let [ys (apply f (leaf-map fn-arg args))
-        y-refs (resolve-lex-refs args ys)]
+  (let [y-vals (apply f (leaf-map fn-arg args))
+        y-refs (resolve-lex-refs args y-vals)]
     (run! lex-ref-dec! (leaf-filter lex-ref? args))
-    (run! lex-ref-inc! (leaf-seq y-refs))
+    (run! lex-ref-inc! (leaf-filter lex-ref? y-refs))
     (run! release! (leaf-filter dangling? args))
-    (run! lex-ref-dec! (leaf-seq y-refs))
+    (run! lex-ref-dec! (leaf-filter lex-ref? y-refs))
     y-refs))

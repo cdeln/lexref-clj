@@ -56,7 +56,7 @@
         (tree? expr) (leaf-map lex-ref-expr expr)
         :else expr))
 
-(defn- bind-expr [var-name]
+(defn- bind-external-name-expr [var-name]
   [var-name `(lex-ref-create ~var-name 1)])
 
 (defmacro with-lex-ref
@@ -68,7 +68,7 @@
   ([expr]
    `(with-lex-ref [] ~expr))
   ([vars expr]
-   `(let [~@(mapcat bind-expr vars)
+   `(let [~@(mapcat bind-external-name-expr vars)
           result# (lex-ref-value ~(lex-ref-expr expr))]
       (run! lex-ref-release! ~vars)
       result#)))
