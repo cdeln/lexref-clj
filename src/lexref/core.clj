@@ -33,6 +33,13 @@
 (defn- retain-expr [expr]
   `(lex-ref-retain ~expr))
 
+(defn- if-expr [cond-expr & body-exprs]
+  `(if ~cond-expr
+     ~@(map lex-ref-expr body-exprs)))
+
+(defn- do-expr [& args]
+  `(do ~@(map lex-ref-expr args)))
+
 (defn- let-expr [bindings & body]
   (let [names (take-nth 2 bindings)
         exprs (map (comp retain-expr lex-ref-expr)
@@ -45,11 +52,24 @@
 (defn- apply-expr [f xs]
   `(lex-ref-apply ~f ~(mapv lex-ref-expr xs)))
 
+(defn- macro? [sym]
+  (when (symbol? sym)
+    (:macro (meta (resolve sym)))))
+
+(def ^:dynamic *allow-macros* false)
+
 (defn- list-expr [expr]
   (let [[what & args] expr]
     (cond
+      (= what 'if) (apply if-expr args)
+      (= what 'do) (apply do-expr args)
       (= what 'let) (apply let-expr args)
-      :else (apply-expr what args))))
+      :else
+      (if (macro? what)
+        (if *allow-macros*
+          `(~what ~@(map lex-ref-expr args))
+          (throw (ex-info (str "Unsupported lexref macro " what) {})))
+        (apply-expr what args)))))
 
 (defn- lex-ref-expr [expr]
   (cond (list-like? expr) (list-expr expr)

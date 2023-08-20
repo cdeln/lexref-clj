@@ -35,7 +35,8 @@
            (str "Lexical reference of type " (type value)
                 " with value " (short-description value) " is not releasable"))
    (assert (not (lex-ref? value))
-           (str "Lexical reference value " value " is a lexical reference"))
+           (str "Lexical reference with value " (short-description value)
+                " is a lexical reference"))
    (->LexRef value (ref count) (ref false))))
 
 (defn lex-ref-value
