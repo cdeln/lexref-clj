@@ -1,5 +1,6 @@
 (ns lexref.lexref
-  (:require [lexref.release :refer [ISelfRelease release! releasable?]]))
+  (:require [lexref.release :refer [ISelfRelease release! releasable?]]
+            [clojure.string :as str]))
 
 (defrecord LexRef [value count released?]
   ISelfRelease
@@ -13,6 +14,16 @@
 (defn lex-ref? [x]
   (instance? LexRef x))
 
+(defn- short-description
+  ([x]
+   (short-description x 10))
+  ([x n]
+   (let [s (str x)
+         d "....."]
+     (if (< (count s) n)
+       s
+       (str/join "" (concat (take n (str x)) [d]))))))
+
 (defn lex-ref-create
   "Create a lexical reference from a `value` and optionally an initial `count`.
   If left out, `count` defaults to 0, representing a temporary value.
@@ -21,7 +32,8 @@
    (lex-ref-create value 0))
   ([value count]
    (assert (releasable? value)
-           (str "Lexical reference value " value " is not releasable"))
+           (str "Lexical reference of type " (type value)
+                " with value " (short-description value) " is not releasable"))
    (assert (not (lex-ref? value))
            (str "Lexical reference value " value " is a lexical reference"))
    (->LexRef value (ref count) (ref false))))

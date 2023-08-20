@@ -4,7 +4,7 @@
     [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer
-    [tree? leaf-map]]
+    [tree? leaf-seq leaf-map]]
    [lexref.release :refer [release!]]))
 
 (defn lex-ref-retain [x]
@@ -57,7 +57,7 @@
         :else expr))
 
 (defn- bind-external-name-expr [var-name]
-  [var-name `(lex-ref-create ~var-name 1)])
+  [var-name `(leaf-map #(lex-ref-create % 1) ~var-name)])
 
 (defmacro with-lexref
   "Create a lexical reference context, evaluate `expr` within it.
@@ -70,5 +70,5 @@
   ([vars expr]
    `(let [~@(mapcat bind-external-name-expr vars)
           result# (lex-ref-value ~(lex-ref-expr expr))]
-      (run! lex-ref-release! ~vars)
+      (run! lex-ref-release! (leaf-seq ~vars))
       result#)))

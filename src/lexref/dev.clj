@@ -79,15 +79,21 @@
 
 
 (defn -main [& args]
+  (def n 10)
+  (def shape [n n n])
   (println "create x")
-  (def x
-    (time (with-python
-            (np/add (np/ones [1000 1000 1000] :dtype :uint8)
-                    (np/ones [1000 1000 1000] :dtype :uint8)))))
+  (def xs
+    (time
+     (with-python
+         [(np/add (np/ones shape :dtype :uint8)
+                  (np/ones shape :dtype :uint8))
+          (np/multiply 3 (np/ones shape :dtype :uint8))])))
   (println "move x, create y")
   (def y
-    (time (with-python [x]
-            (np/add x x))))
+    (time
+     (with-python [xs]
+       (np/add (first xs) (second xs)))))
   (println "release y")
   (time (release! y))
-  (System/exit 0))
+  ;; (System/exit 0)
+  )
