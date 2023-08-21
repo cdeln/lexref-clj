@@ -96,6 +96,6 @@
    `(with-lexref [] ~expr))
   ([vars expr]
    `(let [~@(mapcat bind-external-name-expr vars)
-          result# (lex-ref-value ~(lex-ref-expr expr))]
+          result# (leaf-map lex-ref-value ~(lex-ref-expr expr))]
       (run! lex-ref-release! (leaf-seq ~vars))
       result#)))
