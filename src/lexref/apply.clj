@@ -11,8 +11,7 @@
   ([y-val]
    (partial value-eq? y-val))
   ([y-val x-ref]
-   (and (lex-ref? x-ref)
-        (identical? y-val (lex-ref-value x-ref)))))
+   (identical? y-val (lex-ref-value x-ref))))
 
 (defn- resolve-lex-ref [x-refs y-val]
   (if-let [x-ref (leaf-search (value-eq? y-val) x-refs)]
