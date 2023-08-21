@@ -5,14 +5,12 @@
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer
     [tree? leaf-seq leaf-map]]
-   [lexref.release :refer [release!]]))
+   [lexref.release :refer [release! releasable?]]))
 
 (defn lex-ref-retain [x]
-  (if (lex-ref? x)
-    (do
-      (lex-ref-inc! x)
-      x)
-    (lex-ref-create x 1)))
+  (cond (lex-ref? x) (doto x (lex-ref-inc!))
+        (releasable? x) (lex-ref-create x 1)
+        :else x))
 
 (defn lex-ref-release! [x]
   (when (lex-ref? x)
@@ -33,14 +31,21 @@
 (defn- retain-expr [expr]
   `(lex-ref-retain ~expr))
 
-(defn- if-expr [cond-expr & body-exprs]
+(def ^:private macro-whitelist (atom #{}))
+
+(defn allow-macro [sym]
+  (swap! macro-whitelist (fn [s] (conj s sym))))
+
+(defmulti on-list-expr identity)
+
+(defmethod on-list-expr 'if [cond-expr & body-exprs]
   `(if ~cond-expr
      ~@(map lex-ref-expr body-exprs)))
 
-(defn- do-expr [& args]
+(defmethod on-list-expr 'do [& args]
   `(do ~@(map lex-ref-expr args)))
 
-(defn- let-expr [bindings & body]
+(defmethod on-list-expr 'let [bindings & body]
   (let [names (take-nth 2 bindings)
         exprs (map (comp retain-expr lex-ref-expr)
                    (take-nth 2 (drop 1 bindings)))]
@@ -48,6 +53,10 @@
            result# (do ~@(map lex-ref-expr body))]
        (run! lex-ref-release! [~@names])
        result#)))
+
+(defmethod on-list-expr 'fn [args & body] `(fn ~args ~@body))
+
+(defmethod on-list-expr 'fn* [args & body] `(fn* ~args ~@body))
 
 (defn- apply-expr [f xs]
   `(lex-ref-apply ~f ~(mapv lex-ref-expr xs)))
@@ -60,14 +69,12 @@
 
 (defn- list-expr [expr]
   (let [[what & args] expr]
-    (cond
-      (= what 'if) (apply if-expr args)
-      (= what 'do) (apply do-expr args)
-      (= what 'let) (apply let-expr args)
-      :else
+    (if-let [dispatch (get-method on-list-expr what)]
+      (apply dispatch args)
       (if (macro? what)
-        (if *allow-macros*
-          `(~what ~@(map lex-ref-expr args))
+        (if (or *allow-macros* (contains? @macro-whitelist what))
+          ;`(~what ~@(map lex-ref-expr args))
+          (lex-ref-expr (macroexpand-1 expr))
           (throw (ex-info (str "Unsupported lexref macro " what) {})))
         (apply-expr what args)))))
 
