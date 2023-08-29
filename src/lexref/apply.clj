@@ -7,11 +7,15 @@
 
 (declare lex-ref-apply)
 
+(defmulti lex-ref-value-eq? (fn [a b] [(type a) (type b)]))
+
+(defmethod lex-ref-value-eq? :default [a b] (identical? a b))
+
 (defn- value-eq?
   ([y-val]
    (partial value-eq? y-val))
   ([y-val x-ref]
-   (identical? y-val (lex-ref-value x-ref))))
+   (lex-ref-value-eq? y-val (lex-ref-value x-ref))))
 
 (defn- resolve-lex-ref [x-refs y-val]
   (if-let [x-ref (leaf-search (value-eq? y-val) x-refs)]
