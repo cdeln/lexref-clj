@@ -95,5 +95,12 @@
        (np/add (first xs) (second xs)))))
   (println "release y")
   (time (release! y))
+
+  (def zs
+    (time
+     (with-python
+       (let [xs (np/ones shape :dtype :uint8)
+             ys (np/ones shape :dtype :uint8)]
+         (np/add xs ys)))))
   ;; (System/exit 0)
   )

@@ -45,15 +45,6 @@
 (defmethod on-list-expr 'do [& args]
   `(do ~@(map lex-ref-expr args)))
 
-(defmethod on-list-expr 'let [bindings & body]
-  (let [names (take-nth 2 bindings)
-        exprs (map (comp retain-expr lex-ref-expr)
-                   (take-nth 2 (drop 1 bindings)))]
-    `(let [~@(interleave names exprs)
-           result# (do ~@(map lex-ref-expr body))]
-       (run! lex-ref-release! [~@names])
-       result#)))
-
 (defmethod on-list-expr 'fn [args & body] `(fn ~args ~@body))
 
 (defmethod on-list-expr 'fn* [args & body] `(fn* ~args ~@body))
@@ -86,6 +77,15 @@
 (defn- bind-external-name-expr [var-name]
   [var-name `(leaf-map #(lex-ref-create % 1) ~var-name)])
 
+(defn- with-lexref-context
+  ([expr]
+   (with-lexref-context [] expr))
+  ([vars expr]
+   `(let [~@(mapcat bind-external-name-expr vars)
+          result# (leaf-map lex-ref-value ~(lex-ref-expr expr))]
+      (run! lex-ref-release! (leaf-seq ~vars))
+      result#)))
+
 (defmacro with-lexref
   "Create a lexical reference context, evaluate `expr` within it.
   Optionally move expiring `vars` into the context.
@@ -93,9 +93,14 @@
   created in other contexts to this context. Passed `vars` are invalidated and
   should not be used after evaluating the context."
   ([expr]
-   `(with-lexref [] ~expr))
+   (with-lexref-context [] expr))
   ([vars expr]
-   `(let [~@(mapcat bind-external-name-expr vars)
-          result# (leaf-map lex-ref-value ~(lex-ref-expr expr))]
-      (run! lex-ref-release! (leaf-seq ~vars))
-      result#)))
+   (with-lexref-context vars expr)))
+
+(defmethod on-list-expr 'let [bindings & body]
+  (let [names (take-nth 2 bindings)
+        exprs (take-nth 2 (drop 1 bindings))
+        exprs' (map with-lexref-context exprs)]
+    `(let [~@(interleave names exprs')]
+       (with-lexref [~@names]
+         ~@body))))
