@@ -85,9 +85,9 @@
   (def xs
     (time
      (with-python
-         [(np/add (np/ones shape :dtype :uint8)
-                  (np/ones shape :dtype :uint8))
-          (np/multiply 3 (np/ones shape :dtype :uint8))])))
+       (vector (np/add (np/ones shape :dtype :uint8)
+                       (np/ones shape :dtype :uint8))
+               (np/multiply 3 (np/ones shape :dtype :uint8))))))
   (println "move x, create y")
   (def y
     (time
@@ -103,4 +103,4 @@
              ys (np/ones shape :dtype :uint8)]
          (np/add xs ys)))))
   ;; (System/exit 0)
-  )
+)

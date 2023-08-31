@@ -5,7 +5,8 @@
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer
     [tree? leaf-seq leaf-map]]
-   [lexref.release :refer [release! releasable?]]))
+   [lexref.release :refer [releasable? release!]]))
+
 
 (defn lex-ref-retain [x]
   (cond (lex-ref? x) (doto x (lex-ref-inc!))
@@ -27,9 +28,6 @@
   (or (list? x) (cons? x)))
 
 (declare lex-ref-expr)
-
-(defn- retain-expr [expr]
-  `(lex-ref-retain ~expr))
 
 (def ^:private macro-whitelist (atom #{}))
 
@@ -75,7 +73,7 @@
         :else expr))
 
 (defn- bind-external-name-expr [var-name]
-  [var-name `(leaf-map #(lex-ref-create % 1) ~var-name)])
+  [var-name `(leaf-map lex-ref-retain ~var-name)])
 
 (defn- with-lexref-context
   ([expr]
