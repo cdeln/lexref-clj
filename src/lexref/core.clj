@@ -4,7 +4,7 @@
     [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer
-    [tree? leaf-seq leaf-map]]
+    [tree? leaf-seq leaf-map tree-map]]
    [lexref.release :refer [releasable? release!]]))
 
 
@@ -69,7 +69,7 @@
 
 (defn- lex-ref-expr [expr]
   (cond (list-like? expr) (list-expr expr)
-        (tree? expr) (leaf-map lex-ref-expr expr)
+        (tree? expr) (tree-map expr lex-ref-expr)
         :else expr))
 
 (defn- bind-external-name-expr [var-name]
