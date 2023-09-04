@@ -1,16 +1,16 @@
 (ns lexref.lexref
   "Defines the lexical reference type with associated methods."
-  (:require [lexref.resource :refer [ISelfRelease release! releasable?]]
+  (:require [lexref.resource :refer [release! releasable?]]
             [clojure.string :as str]))
 
-(defrecord LexRef [value count released?]
-  ISelfRelease
-  (self-release! [_]
-    (dosync
-     (assert (zero? @count))
-     (assert (not @released?))
-     (release! value)
-     (alter released? (fn [_] true)))))
+(defrecord LexRef [value count released?])
+
+(defmethod release! LexRef [this]
+  (dosync
+   (assert (zero? @(:count this)))
+   (assert (not @(:released? this)))
+   (release! (:value this))
+   (alter (:released? this) (fn [_] true))))
 
 (defn lex-ref?
   "Check if an object is a lexical reference."

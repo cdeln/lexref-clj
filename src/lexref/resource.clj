@@ -1,28 +1,16 @@
 (ns lexref.resource
-  "Defines interface of a lexical reference resource.")
-
-(defprotocol ISelfRelease
-  (self-release! [this]))
-
-(defn- release-dispatch [x]
-  (if (satisfies? ISelfRelease x)
-    ::self-release
-    (type x)))
+  "Defines the interface of a lexical reference resource.")
 
 (defmulti release!
   "Hook into how a resource is released.
-  Dispatch is on type, with the exception of objects implementing `ISelfRelease`,
-  which are delegated to the `self-release!` method instead."
-  release-dispatch)
+  Dispatches on object type. Note that this can be overriden with meta."
+  type)
 
 (defn releasable?
-  "Checks if a resource is releasable, which is true if it implements `ISelfRelease` or
-  if there exists a `release!` method for the type of the resource."
+  "Checks if a resource is releasable.
+  True if there exist a matching method for `release!`."
   [x]
-  (not (nil? (get-method release! (release-dispatch x)))))
-
-;; Default delegation to self releasable objects
-(defmethod release! ::self-release [x] (self-release! x))
+  (not (nil? (get-method release! (type x)))))
 
 (defmulti equals?
   "Hook into how resource values are compared for equality.

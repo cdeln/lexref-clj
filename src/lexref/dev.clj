@@ -5,7 +5,7 @@
    [lexref.lexref :refer [lex-ref? lex-ref-create]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer [tree? leaf-map]]
-   [lexref.resource :refer [ISelfRelease release!]]
+   [lexref.resource :refer [release!]]
    [libpython-clj2.python :as py]
    [libpython-clj2.require :refer [require-python]]
    [libpython-clj2.python.ffi :as py-ffi]
@@ -14,10 +14,8 @@
 (require-python '[builtins :as pyb])
 (require-python '[numpy :as np])
 
-(extend-type java.lang.Number
-  ISelfRelease
-  (self-release! [this]
-    (println "release number " this)))
+(defmethod release! java.lang.Number [this]
+  (println "release number " this))
 
 (defn- lex-ref->map [x]
   (cond (lex-ref? x) {:value (:value x)
