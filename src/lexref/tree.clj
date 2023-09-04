@@ -1,9 +1,14 @@
-(ns lexref.tree)
+(ns lexref.tree
+  "Define a interface to tree structures.
+  Tree structures are preserved by the lexical reference framework,
+  and values within them are handled properly.
+  Non-tree collections passed into the framework will not be reference counted correctly,
+  most likely leading to resource leaks.")
 
 (defprotocol ITree
   "Interface for trees.
-  A tree is a structure that can enumerate its own values and map a function over them
-  while preserving the tree structure."
+  A tree is a structure that can enumerate its own values,
+  and map a function over them while preserving the tree structure."
   (tree-vals [this])
   (tree-map [f this]))
 
@@ -19,7 +24,7 @@
   (tree-map [this f]
     (into '() (reverse (map f this)))))
 
-;; Function varargs
+;; Function varargs become this type
 (extend-type clojure.lang.ArraySeq
   ITree
   (tree-vals [this] (seq this))

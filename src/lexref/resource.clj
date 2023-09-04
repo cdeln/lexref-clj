@@ -1,5 +1,5 @@
 (ns lexref.resource
-  "Defines the interface of a lexical reference resource.")
+  "Define the interface of a lexical reference resource.")
 
 (defmulti release!
   "Hook into how a resource is released.

@@ -1,4 +1,6 @@
 (ns lexref.python
+  "Define an integration of the python library into this library.
+  Ordinary python objects and numpy arrays are supported."
   (:require
    [lexref.core :refer [with-lexref]]
    [lexref.resource :refer [release! equals?]]

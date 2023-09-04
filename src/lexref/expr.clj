@@ -1,4 +1,5 @@
 (ns lexref.expr
+  "Define functions transforming expressions into their lexically referenced equivalents."
   (:require [lexref.tree :refer [tree? tree-map]]
             [lexref.apply :refer [lex-ref-apply]]))
 

@@ -1,4 +1,5 @@
 (ns lexref.core
+  "Define the core end user functionality of this library."
   (:require
    [lexref.lexref :refer
     [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
