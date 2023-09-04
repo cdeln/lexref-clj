@@ -1,5 +1,6 @@
 (ns lexref.lexref
-  (:require [lexref.release :refer [ISelfRelease release! releasable?]]
+  "Defines the lexical reference type with associated methods."
+  (:require [lexref.resource :refer [ISelfRelease release! releasable?]]
             [clojure.string :as str]))
 
 (defrecord LexRef [value count released?]
@@ -11,7 +12,9 @@
      (release! value)
      (alter released? (fn [_] true)))))
 
-(defn lex-ref? [x]
+(defn lex-ref?
+  "Check if an object is a lexical reference."
+  [x]
   (instance? LexRef x))
 
 (defn- short-description
@@ -25,8 +28,8 @@
        (str/join "" (concat (take n (str x)) [d]))))))
 
 (defn lex-ref-create
-  "Create a lexical reference from a `value` and optionally an initial `count`.
-  If left out, `count` defaults to 0, representing a temporary value.
+  "Create a lexical reference from a value and optionally an initial count.
+  If left out, count defaults to 0, representing a temporary value.
   If a lexical reference is created and bound to name, it should be set to 1."
   ([value]
    (lex-ref-create value 0))
@@ -41,18 +44,24 @@
 
 (defn lex-ref-value
   "Return the value hold by a lexical reference.
-  If `x` is not a lexical reference it is returned directly."
+  If the value is not a lexical reference it is returned directly."
   [x]
   (if (lex-ref? x)
     (:value x)
     x))
 
-(defn lex-ref-inc! [x]
+(defn lex-ref-inc!
+  "Increment the reference count of a lexical reference.
+  Return the incremented reference count."
+  [x]
   (assert (lex-ref? x))
   (dosync
    (alter (:count x) inc)))
 
-(defn lex-ref-dec! [x]
+(defn lex-ref-dec!
+  "Decrements the reference count of a lexical reference.
+  Return the decremented reference count."
+  [x]
   (assert (lex-ref? x))
   (dosync
    (alter (:count x) dec)))

@@ -5,7 +5,7 @@
    [lexref.lexref :refer [lex-ref? lex-ref-create]]
    [lexref.apply :refer [lex-ref-apply]]
    [lexref.tree :refer [tree? leaf-map]]
-   [lexref.release :refer [ISelfRelease release!]]
+   [lexref.resource :refer [ISelfRelease release!]]
    [libpython-clj2.python :as py]
    [libpython-clj2.require :refer [require-python]]
    [libpython-clj2.python.ffi :as py-ffi]
@@ -85,9 +85,9 @@
   (def xs
     (time
      (with-python
-       (vector (np/add (np/ones shape :dtype :uint8)
-                       (np/ones shape :dtype :uint8))
-               (np/multiply 3 (np/ones shape :dtype :uint8))))))
+       [(np/add (np/ones shape :dtype :uint8)
+                (np/ones shape :dtype :uint8))
+        (np/multiply 3 (np/ones shape :dtype :uint8))])))
   (println "move x, create y")
   (def y
     (time

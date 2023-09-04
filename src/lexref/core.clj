@@ -2,82 +2,38 @@
   (:require
    [lexref.lexref :refer
     [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
-   [lexref.apply :refer [lex-ref-apply]]
-   [lexref.tree :refer
-    [tree? leaf-seq leaf-map tree-map]]
-   [lexref.release :refer [releasable? release!]]))
+   [lexref.tree :refer [leaf-seq leaf-map]]
+   [lexref.expr :refer [lex-ref-expr on-list-expr]]
+   [lexref.resource :refer [releasable? release!]]))
 
-
-(defn lex-ref-retain [x]
+(defn lex-ref-retain!
+  "Create a lexical reference or increase the reference count if it is already reference counted.
+  Used when a value is bound to a name in a lexical reference context.
+  Only releasable values are handled, other values are returned as is.
+  This should probably not be used by end users, use `with-lexref` or `with-lexref-sym` instead." 
+  [x]
   (cond (lex-ref? x) (doto x (lex-ref-inc!))
         (releasable? x) (lex-ref-create x 1)
         :else x))
 
-(defn lex-ref-release! [x]
+(defn lex-ref-release!
+  "Decrement reference count and release.
+  Used when a value is unbound from a name in a lexical reference context.
+  This should probably not be used by end users, use `with-lexref` or `with-lexref-sym` instead."
+  [x]
   (when (lex-ref? x)
     (lex-ref-dec! x)
     (when (zero? @(:count x))
       (release! x))))
 
-;;; Expr
-
-(defn- cons? [x]
-  (instance? clojure.lang.Cons x))
-
-(defn- list-like? [x]
-  (or (list? x) (cons? x)))
-
-(declare lex-ref-expr)
-
-(def ^:private macro-whitelist (atom #{}))
-
-(defn allow-macro [sym]
-  (swap! macro-whitelist (fn [s] (conj s sym))))
-
-(defmulti on-list-expr identity)
-
-(defmethod on-list-expr 'if [cond-expr & body-exprs]
-  `(if ~cond-expr
-     ~@(map lex-ref-expr body-exprs)))
-
-(defmethod on-list-expr 'do [& args]
-  `(do ~@(map lex-ref-expr args)))
-
-(defmethod on-list-expr 'fn [args & body] `(fn ~args ~@body))
-
-(defmethod on-list-expr 'fn* [args & body] `(fn* ~args ~@body))
-
-(defn- apply-expr [f xs]
-  `(lex-ref-apply ~f ~(mapv lex-ref-expr xs)))
-
-(defn- macro? [sym]
-  (when (symbol? sym)
-    (:macro (meta (resolve sym)))))
-
-(def ^:dynamic *allow-macros* false)
-
-(defn- list-expr [expr]
-  (let [[what & args] expr]
-    (if-let [dispatch (get-method on-list-expr what)]
-      (apply dispatch args)
-      (if (macro? what)
-        (if (or *allow-macros* (contains? @macro-whitelist what))
-          ;`(~what ~@(map lex-ref-expr args))
-          (lex-ref-expr (macroexpand-1 expr))
-          (throw (ex-info (str "Unsupported lexref macro " what) {})))
-        (apply-expr what args)))))
-
-(defn- lex-ref-expr [expr]
-  (cond (list-like? expr) (list-expr expr)
-        (tree? expr) (tree-map expr lex-ref-expr)
-        :else expr))
-
 (defn- bind-external-name-expr [var-name]
-  [var-name `(leaf-map lex-ref-retain ~var-name)])
+  [var-name `(leaf-map lex-ref-retain! ~var-name)])
 
-(defn- with-lexref-context
+(defn with-lexref-sym
+  "Symbolic function version of `with-lexrex`.
+  Suitable to use for extending list expression transformation through `on-list-expr`."
   ([expr]
-   (with-lexref-context [] expr))
+   (with-lexref-sym [] expr))
   ([vars expr]
    `(let [~@(mapcat bind-external-name-expr vars)
           result# (leaf-map lex-ref-value ~(lex-ref-expr expr))]
@@ -85,20 +41,25 @@
       result#)))
 
 (defmacro with-lexref
-  "Create a lexical reference context, evaluate `expr` within it.
-  Optionally move expiring `vars` into the context.
+  "Create a lexical reference context and evaluate an expression within it.
+  Optionally move variables into the context.
   This should be used to transfer ownership of manually tracked variables
-  created in other contexts to this context. Passed `vars` are invalidated and
-  should not be used after evaluating the context."
+  created in other contexts to this context.
+  Passed variables are invalidated and should not be used after evaluating the context.
+  To create a context as part of a list expression hook,
+  it is easier to use the symbolic function version `with-lexref-sym`"
   ([expr]
-   (with-lexref-context [] expr))
+   (with-lexref-sym [] expr))
   ([vars expr]
-   (with-lexref-context vars expr)))
+   (with-lexref-sym vars expr)))
 
+;; Hook into let expressions
+;; Let expressions are easily transformed using independent lexref contexts for each binding.
+;; Then, all bindings are moved into a final context which transforms the body.
 (defmethod on-list-expr 'let [bindings & body]
   (let [names (take-nth 2 bindings)
         exprs (take-nth 2 (drop 1 bindings))
-        exprs' (map with-lexref-context exprs)]
+        exprs' (map with-lexref-sym exprs)]
     `(let [~@(interleave names exprs')]
        (with-lexref [~@names]
          ~@body))))

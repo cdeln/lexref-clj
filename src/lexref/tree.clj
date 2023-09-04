@@ -1,6 +1,9 @@
 (ns lexref.tree)
 
 (defprotocol ITree
+  "Interface for trees.
+  A tree is a structure that can enumerate its own values and map a function over them
+  while preserving the tree structure."
   (tree-vals [this])
   (tree-map [f this]))
 
@@ -41,21 +44,35 @@
   (tree-map [this f]
     (into #{} (map f this))))
 
-(defn tree? [x]
+(defn tree?
+  "Check if an object is a tree.
+  If an object is not a tree it is a leaf."
+  [x]
   (satisfies? ITree x))
 
-(defn leaf-map [f x]
+(defn leaf-map
+  "Map a function over the leafs of a tree.
+  The tree structure is preserved."
+  [f x]
   (if (tree? x)
     (tree-map x (partial leaf-map f))
     (f x)))
 
-(defn leaf-seq [x]
+(defn leaf-seq
+  "Enumerate the leaves of a tree as a flat sequence."
+  [x]
   (if (tree? x)
     (mapcat leaf-seq (tree-vals x))
     (list x)))
 
-(defn leaf-filter [pred tree]
+(defn leaf-filter
+  "Filter the leaves of a tree with a specified predicate.
+  Return a flat sequence of filtered values."
+  [pred tree]
   (filter pred (leaf-seq tree)))
 
-(defn leaf-search [pred tree]
+(defn leaf-search
+  "Find the first leaf matching the specified predicate.
+  Return nil if no such value is found."
+  [pred tree]
   (first (leaf-filter pred tree)))
