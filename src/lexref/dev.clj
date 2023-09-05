@@ -48,17 +48,19 @@
     (println "bound after:  " (lex-ref->map bound))))
 
 
-(println "Test with-lexref without external var")
+(println "Test with-lexref with external var")
 (def outer-var 3)
-(with-lexref [outer-var]
-  (let [inner-var (* outer-var outer-var)]
-    (+ outer-var inner-var)))
+(pprint
+ (with-lexref [outer-var]
+   (let [inner-var (* outer-var outer-var)]
+     (+ outer-var inner-var))))
 (println)
 
 (println "Test with-lexref reduce")
-(with-lexref
-  (let [x 1 y 2 z 4]
-    (reduce + [x y z])))
+(pprint
+ (with-lexref
+   (let [x 1 y 2 z 4]
+     (reduce + [x y z]))))
 (println)
 
 (defmethod release! :pyobject [x]

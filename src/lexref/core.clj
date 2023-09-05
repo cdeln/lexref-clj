@@ -5,30 +5,20 @@
     [lex-ref? lex-ref-create lex-ref-value lex-ref-inc! lex-ref-dec!]]
    [lexref.tree :refer [leaf-seq leaf-map]]
    [lexref.expr :refer [lex-ref-expr on-list-expr]]
+   [lexref.apply :refer [lex-ref-apply]]
    [lexref.resource :refer [releasable? release!]]))
 
-(defn lex-ref-retain!
-  "Create a lexical reference or increase the reference count if it is already reference counted.
-  Used when a value is bound to a name in a lexical reference context.
-  Only releasable values are handled, other values are returned as is.
-  This should probably not be used by end users, use `with-lexref` or `with-lexref-sym` instead." 
+(defn lex-ref-init
+  "Initialize a value to a lexical reference, if it is a resource, otherwise return as is.
+  Used when a value is passed to a lexical reference context."
   [x]
-  (cond (lex-ref? x) (doto x (lex-ref-inc!))
-        (releasable? x) (lex-ref-create x 1)
-        :else x))
-
-(defn lex-ref-release!
-  "Decrement reference count and release.
-  Used when a value is unbound from a name in a lexical reference context.
-  This should probably not be used by end users, use `with-lexref` or `with-lexref-sym` instead."
-  [x]
-  (when (lex-ref? x)
-    (lex-ref-dec! x)
-    (when (zero? @(:count x))
-      (release! x))))
+  (if (releasable? x)
+    (lex-ref-create x)
+    x))
 
 (defn- bind-external-name-expr [var-name]
-  [var-name `(leaf-map lex-ref-retain! ~var-name)])
+  [var-name `(leaf-map lex-ref-init ~var-name)])
+
 
 (defn with-lexref-sym
   "Symbolic function version of `with-lexrex`.
@@ -36,10 +26,10 @@
   ([expr]
    (with-lexref-sym [] expr))
   ([vars expr]
-   `(let [~@(mapcat bind-external-name-expr vars)
-          result# (leaf-map lex-ref-value ~(lex-ref-expr expr))]
-      (run! lex-ref-release! (leaf-seq ~vars))
-      result#)))
+   `(let [~@(mapcat bind-external-name-expr vars)]
+      (leaf-map lex-ref-value
+                (lex-ref-apply (fn ~vars ~(lex-ref-expr expr)) ~vars)))))
+
 
 (defmacro with-lexref
   "Create a lexical reference context and evaluate an expression within it.
