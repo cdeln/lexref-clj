@@ -2,6 +2,7 @@
 
 A Clojure library implementing lexical references.
 
+See this article for rationale and walkthrough: https://nextjournal.com/cdeln/reference-counting-in-clojure
 
 ## License
 
