@@ -7,6 +7,7 @@
    [lexref.tree :refer [tree? leaf-map]]
    [lexref.resource :refer [release!]]
    [libpython-clj2.python :as py]
+   [libpython-clj2.python.np-array]
    [libpython-clj2.require :refer [require-python]]
    [libpython-clj2.python.ffi :as py-ffi]
    [libpython-clj2.python.gc :as py-gc]))
