@@ -10,7 +10,7 @@
   A tree is a structure that can enumerate its own values,
   and map a function over them while preserving the tree structure."
   (tree-vals [this])
-  (tree-map [f this]))
+  (tree-map [this f]))
 
 (extend-type clojure.lang.PersistentVector
   ITree

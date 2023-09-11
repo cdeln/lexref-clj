@@ -18,7 +18,7 @@ Evaluating an expression using automatic reference counting is as simple as usin
 ```
 
 where `EXPR` is the expression of interest.
-Intermediate resource will be promptly assuming that they have been adapted to this library.
+Intermediate resource will be promptly released assuming that they have been adapted to this library.
 
 To adapt a custom resource to be lexically referenced, specialize the `release!` multi method for your type
 
@@ -45,23 +45,50 @@ the `equals?` multi method
 Note that it dispatch on the type of both arguments, so you can further specialize it in case
 resources can be shared between objects of different types.
 
+The structure of Clojure collections are preserved by this library.
+If you have some custom collection type that you want the library to understand, integrate it by adapting the `ITree` protocol
+
+```clojure
+(require '[lexref.tree :refer [ITree]])
+
+(extent-type TYPE
+  ITree
+  (tree-vals VALUE-FUNC)
+  (tree-map  MAP-FUNC))
+```
+
+where `VALUE-FUNC` is a function taking of one argument taking a tree and returning a flat sequence (not necessarily lazy) of values in the collection,
+and `MAP-FUNC` is a structure preserving version of `map` for your `TYPE` (however with arguments reversed, since protocols dispatch on first argument).
+All builtin collection types (or rather, should be) integrated.
+Notably, `tree-map` for map collections only apply the function to the values and not the keys, which is most likely what you want.
+
+## Installing
+
+Install the library from source using Leiningen
+
+    git clone https://github.com/cdeln/lexref-clj
+    cd lexref-clj
+    lein install
+
+then in your project, assuming you are using Leiningen, add an entry `[lexref "0.1.0"]` to the `:dependencies` array.
+
 ## Examples
 
 See [`lexref.python`](src/lexref/python.clj) for an example of how `release!` and `equals?` are specialized for numpy arrays in `libpython-clj`.
-You can also browse the code in [`lexref.dev`](src/lexref/python.clj), load it into your REPL and start to play around and get a feeling of how it works.
+You can also browse the code in [`lexref.dev`](src/lexref/dev.clj), load it into your REPL and start to play around and get a feeling of how it works.
 
 ## Extending
 
-This library is written to be extensible by downstream consumers.
+This library is written to be extensible.
 The `with-lexref` macro works by transforming an expression into a lexically referenced equivalent,
 such that all intermediate instances of your type are promptly released.
-The macro transforms expressions by dispatching on list expression head symbols.
+The macro transforms expressions by dispatching on the list expression head symbol.
 All builtin forms are (or rather, should be) supported as well as commonly used macros such as `let`.
 By default, macros are not expanded unless explicitly told so,
 either by binding `lexref.expr/*allow-macros*` context variable to `true`,
 or by calling `(lexref.expr/allow-macro MACRO-SYMBOL)`.
 In case a form needs special transformation you can specialize the behaviour by hooking into
-the list expression transform multi method `lexref.expr/on-list-expr` as follows
+the `lexref.expr/on-list-expr` multi method as follows
 
 ```clojure
 (require '[lexref.expr :refer [on-list-expr]])
@@ -77,14 +104,19 @@ The `HANDLER` should be a function taking two arguments
 For example, let-expressions are implemented like this. See `lexref.core` for the implementation.
 
 If a list head symbol is not registred as above and is not a macro, then it is assumed to be a function,
-which are all automatically handled by the library.
+which is automatically handled by the library.
+
+Finally, `lexref.core/with-lexref-sym` is a symbolic function version of the `with-lexref` macro,
+which probably will come in handy if you write an extension.
+In general, any useful macro should have a symbolc function version (which the macro should be implemented in terms of!),
+in order to simplify meta programming.
 
 ## Contributing
 
 Currently this library have only been adapted to `libpython-clj`.
 Nevertheless, it is written to be customizable and easily integrated into other libraries as well.
-If you adapt this library and want to share it, please open an issue to discuss.
-If you discover a bug, experience some unexpected behaviour or have an idea, please open an issue to discuss it.
+If you adapt this library and want to share it, please open an issue to discuss how to integrate it.
+If you discover a bug, experience some unexpected behaviour or have some other idea, please open an issue as well.
 You can also contact me directly on the Clojurians Slack or Zulip. I'll create a channel/stream if it becomes necessary.
 
 ## License
