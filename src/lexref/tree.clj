@@ -49,6 +49,12 @@
   (tree-map [this f]
     (into #{} (map f this))))
 
+(extend-type clojure.lang.LazySeq
+  ITree
+  (tree-vals [this] this)
+  (tree-map [this f]
+    (map f this)))
+
 (defn tree?
   "Check if an object is a tree.
   If an object is not a tree it is a leaf."

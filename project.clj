@@ -1,4 +1,4 @@
-(defproject lexref "0.1.0"
+(defproject lexref "0.2.0"
   :description "Lexical references in Clojure"
   :url "https://github.com/cdeln/lexref-clj"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
