@@ -49,4 +49,10 @@
     (let [n @number-release-count]
       (is (= (with-lexref (conj [] (update {:a (+ 1 2)} :a + (* 2 3))))
              [{:a 9}]))
-      (is (= @number-release-count (+ n 2))))))
+      (is (= @number-release-count (+ n 2)))))
+  (testing "reduce with complex function"
+    (let [n @number-release-count]
+      (is (= (with-lexref (reduce (fn [r [x w]] (+ r (* x w))) 1 [[2 3] [4 5] [6 7]]))
+             69))
+      (is (= @number-release-count (+ n 3 2))))) ; 3 for *, 2 for +
+)
